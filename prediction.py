@@ -1,27 +1,24 @@
-# ✅ prediction.py
-
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 import joblib
 import numpy as np
 
-# Load trained model
+# Load model and scaler
 model = joblib.load("best_model.pkl")
+scaler = joblib.load("scaler.pkl")
 
-# Create FastAPI app
 app = FastAPI(title="BMI Prediction API")
 
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Accept requests from all domains
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Define input schema with types and constraints
 class InputData(BaseModel):
     age: int = Field(..., ge=10, le=100)
     children: int = Field(..., ge=0, le=10)
@@ -34,7 +31,7 @@ class InputData(BaseModel):
 
 @app.post("/predict")
 def predict_bmi(data: InputData):
-    # Convert to 2D array
+    # Prepare input
     features = np.array([[
         data.age,
         data.children,
@@ -45,5 +42,10 @@ def predict_bmi(data: InputData):
         data.region_southeast,
         data.region_southwest
     ]])
-    prediction = model.predict(features)[0]
+
+    # Scale the input like we did in training
+    scaled_features = scaler.transform(features)
+
+    # Predict
+    prediction = model.predict(scaled_features)[0]
     return {"predicted_bmi": round(prediction, 2)}
